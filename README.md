@@ -78,4 +78,4 @@ Originally released as the *Kontiki 100*, the name was changed in 1984 after a d
 
 ## Contributing
 
-Issues and pull requests are welcome. There is no automated test suite — validation is manual via ROM/disk images and the built-in Z80 debugger (`make debug`).
+Issues and pull requests are welcome. There is no automated test suite — validation is manual via ROM/disk images.
