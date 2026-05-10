@@ -1,0 +1,7 @@
+{
+  "roms": [
+    {"file": "tikirom-1.30", "label": "TIKI-ROM V1.30"},
+    {"file": "tikirom-1.35", "label": "TIKI-ROM V1.35"},
+    {"file": "tikirom-2.03w", "label": "TIKI-ROM V2.03 W", "default": true}
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "floppies": [
+    {"file": "tiko_kjerne_v4.01.dsk", "label": "TIKO Kjerne v4.01 - CP/M boot disk", "size": 400},
+    {"file": "t90.dsk", "label": "90K single-sided formatted disk", "size": 90},
+    {"file": "t200.dsk", "label": "200K formatted disk", "size": 200},
+    {"file": "t400.dsk", "label": "400K formatted disk", "size": 400},
+    {"file": "t800.dsk", "label": "800K double-sided formatted disk", "size": 800}
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "manuals": [
+    {"file": "Intro.pdf", "label": "Intro"},
+    {"file": "TIKO.pdf", "label": "TIKO Manual"},
+    {"file": "instruksjon.pdf", "label": "Instruksjonsbok"},
+    {"file": "teknisk-handbok.pdf", "label": "Teknisk Håndbok"}
+  ]
+}

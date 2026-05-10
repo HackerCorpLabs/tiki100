@@ -1,0 +1,390 @@
+name: Release builds
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag name for the release (e.g. v0.2.0). Leave empty to build without publishing.'
+        required: false
+        default: ''
+
+env:
+  # Package metadata used by fpm (.deb builds) and release artifacts.
+  PKG_NAME: tiki100
+  PKG_DESCRIPTION: "TIKI-100 emulator (Norwegian CP/M-compatible Z80 computer from 1984)"
+  PKG_MAINTAINER: "Ronny Hansen <noreply@github.com>"
+  PKG_HOMEPAGE: "https://github.com/HackerCorpLabs/tiki100"
+  PKG_LICENSE: "Freeware (see README)"
+
+jobs:
+  build-windows:
+    name: Build ${{ matrix.arch }}
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            msystem: MINGW64
+            prefix: mingw-w64-x86_64
+            dll_src: /mingw64/bin/SDL2.dll
+          - arch: x86
+            msystem: MINGW32
+            prefix: mingw-w64-i686
+            dll_src: /mingw32/bin/SDL2.dll
+
+    defaults:
+      run:
+        shell: msys2 {0}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup MSYS2 (${{ matrix.msystem }})
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: ${{ matrix.msystem }}
+          update: true
+          install: >-
+            base-devel
+            git
+            ${{ matrix.prefix }}-gcc
+            ${{ matrix.prefix }}-cmake
+            ${{ matrix.prefix }}-ninja
+            ${{ matrix.prefix }}-pkgconf
+            ${{ matrix.prefix }}-SDL2
+
+      - name: Show toolchain versions
+        run: |
+          gcc --version | head -1
+          cmake --version | head -1
+          ninja --version
+          pkg-config --modversion sdl2
+
+      - name: Build release
+        run: make release
+
+      - name: Stage release artifacts
+        run: |
+          set -e
+          STAGE="dist/tiki100-windows-${{ matrix.arch }}"
+          mkdir -p "$STAGE"
+          cp build_release/bin/tiki100.exe "$STAGE/"
+          cp "${{ matrix.dll_src }}" "$STAGE/SDL2.dll"
+          mkdir -p "$STAGE/rom"
+          cp rom/tikirom-* "$STAGE/rom/" 2>/dev/null || true
+          cp rom/roms.json "$STAGE/rom/" 2>/dev/null || true
+          mkdir -p "$STAGE/disks/boot"
+          cp -r disks/boot/. "$STAGE/disks/boot/" 2>/dev/null || true
+          cp README.md "$STAGE/" 2>/dev/null || true
+
+      - name: Upload build artifact
+        # Upload the staging DIRECTORY, not a pre-zipped file.
+        # actions/upload-artifact always wraps its contents in a zip on
+        # download, so uploading a .zip produced a zip-inside-a-zip.
+        # Pointing at the dir puts the exe + DLL + assets at the root of
+        # the downloaded zip.
+        uses: actions/upload-artifact@v4
+        with:
+          name: tiki100-windows-${{ matrix.arch }}
+          path: dist/tiki100-windows-${{ matrix.arch }}/
+          if-no-files-found: error
+
+  build-linux-amd64:
+    name: Build linux-amd64 (.deb)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Compute package version
+        id: ver
+        run: |
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            V="${GITHUB_REF_NAME#v}"
+          else
+            V="0.0.0-dev"
+          fi
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y --no-install-recommends \
+            build-essential cmake ninja-build pkg-config libsdl2-dev \
+            ruby ruby-dev rubygems
+
+      - name: Install fpm (.deb packager)
+        run: sudo gem install --no-document fpm
+
+      - name: Build release binary
+        run: make release
+
+      - name: Stage files for packaging
+        run: |
+          set -e
+          STAGE=pkgroot
+          mkdir -p "$STAGE/usr/bin"
+          mkdir -p "$STAGE/usr/share/$PKG_NAME/rom"
+          mkdir -p "$STAGE/usr/share/$PKG_NAME/disks/boot"
+          cp build_release/bin/tiki100 "$STAGE/usr/bin/tiki100"
+          cp rom/tikirom-* "$STAGE/usr/share/$PKG_NAME/rom/" 2>/dev/null || true
+          cp rom/roms.json  "$STAGE/usr/share/$PKG_NAME/rom/" 2>/dev/null || true
+          cp -r disks/boot/. "$STAGE/usr/share/$PKG_NAME/disks/boot/" 2>/dev/null || true
+
+      - name: Build .deb
+        run: |
+          set -e
+          mkdir -p dist
+          fpm -s dir -t deb \
+              --name "$PKG_NAME" \
+              --version "${{ steps.ver.outputs.version }}" \
+              --architecture amd64 \
+              --description "$PKG_DESCRIPTION" \
+              --maintainer "$PKG_MAINTAINER" \
+              --url "$PKG_HOMEPAGE" \
+              --license "$PKG_LICENSE" \
+              --depends "libsdl2-2.0-0" \
+              --package "dist/" \
+              -C pkgroot .
+
+      - name: List artifact
+        run: ls -la dist/
+
+      - name: Upload .deb
+        uses: actions/upload-artifact@v4
+        with:
+          name: tiki100-linux-amd64-deb
+          path: dist/*.deb
+          if-no-files-found: error
+
+  build-linux-arm:
+    name: Build linux-${{ matrix.friendly }} (.deb)
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - friendly: armhf     # Raspberry Pi OS 32-bit (Pi 2/3/4/Zero 2)
+            run_arch: armv7
+            deb_arch: armhf
+          - friendly: arm64     # Raspberry Pi OS 64-bit (Pi 3/4/5)
+            run_arch: aarch64
+            deb_arch: arm64
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Compute package version
+        id: ver
+        run: |
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            V="${GITHUB_REF_NAME#v}"
+          else
+            V="0.0.0-dev"
+          fi
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+
+      - name: Build binary inside ${{ matrix.friendly }} Debian bookworm container
+        uses: uraimo/run-on-arch-action@v2
+        with:
+          arch: ${{ matrix.run_arch }}
+          distro: bookworm
+          githubToken: ${{ github.token }}
+          # The action bind-mounts the workspace so files written under
+          # /workspace are visible on the host runner afterwards.
+          dockerRunArgs: |
+            --volume "${PWD}:/workspace"
+          install: |
+            apt-get update -q -y
+            apt-get install -y --no-install-recommends \
+              build-essential cmake ninja-build pkg-config libsdl2-dev ca-certificates
+          run: |
+            set -eu
+            cd /workspace
+            make release
+            # Stage files under pkgroot so the host runner can package them.
+            STAGE=pkgroot
+            rm -rf "$STAGE"
+            mkdir -p "$STAGE/usr/bin"
+            mkdir -p "$STAGE/usr/share/tiki100/rom"
+            mkdir -p "$STAGE/usr/share/tiki100/disks/boot"
+            cp build_release/bin/tiki100 "$STAGE/usr/bin/tiki100"
+            cp rom/tikirom-* "$STAGE/usr/share/tiki100/rom/" 2>/dev/null || true
+            cp rom/roms.json  "$STAGE/usr/share/tiki100/rom/" 2>/dev/null || true
+            cp -r disks/boot/. "$STAGE/usr/share/tiki100/disks/boot/" 2>/dev/null || true
+            # Let the host runner user own the staged tree so fpm can read it.
+            chown -R $(stat -c '%u:%g' /workspace) "$STAGE" build_release
+
+      - name: Install fpm on host
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y --no-install-recommends ruby ruby-dev rubygems
+          sudo gem install --no-document fpm
+
+      - name: Build .deb on host
+        run: |
+          set -e
+          mkdir -p dist
+          fpm -s dir -t deb \
+              --name "$PKG_NAME" \
+              --version "${{ steps.ver.outputs.version }}" \
+              --architecture ${{ matrix.deb_arch }} \
+              --description "$PKG_DESCRIPTION" \
+              --maintainer "$PKG_MAINTAINER" \
+              --url "$PKG_HOMEPAGE" \
+              --license "$PKG_LICENSE" \
+              --depends "libsdl2-2.0-0" \
+              --package "dist/" \
+              -C pkgroot .
+
+      - name: List artifact
+        run: ls -la dist/
+
+      - name: Upload .deb
+        uses: actions/upload-artifact@v4
+        with:
+          name: tiki100-linux-${{ matrix.deb_arch }}-deb
+          path: dist/*.deb
+          if-no-files-found: error
+
+  build-macos:
+    name: Build macOS ${{ matrix.arch }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: arm64
+            runner: macos-latest    # Apple Silicon (M1/M2/M3)
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install SDL2
+        run: brew install sdl2
+
+      - name: Build release binary
+        run: make release
+
+      - name: Stage release artifacts
+        run: |
+          set -e
+          STAGE="dist/tiki100-macos-${{ matrix.arch }}"
+          mkdir -p "$STAGE"
+          cp build_release/bin/tiki100 "$STAGE/"
+          mkdir -p "$STAGE/rom"
+          cp rom/tikirom-* "$STAGE/rom/" 2>/dev/null || true
+          cp rom/roms.json "$STAGE/rom/" 2>/dev/null || true
+          mkdir -p "$STAGE/disks/boot"
+          cp -r disks/boot/. "$STAGE/disks/boot/" 2>/dev/null || true
+          cp README.md "$STAGE/" 2>/dev/null || true
+
+      - name: Create archive
+        run: |
+          cd dist
+          tar czf "tiki100-macos-${{ matrix.arch }}.tar.gz" "tiki100-macos-${{ matrix.arch }}"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tiki100-macos-${{ matrix.arch }}
+          path: dist/tiki100-macos-${{ matrix.arch }}.tar.gz
+          if-no-files-found: error
+
+  bundle-disks:
+    name: Bundle full disk library
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Compute package version
+        id: ver
+        run: |
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            V="${GITHUB_REF_NAME#v}"
+          else
+            V="0.0.0-dev"
+          fi
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+
+      - name: Stage disks tree
+        # Bundle all of disks/ (boot + library + hdd) so the zip is a
+        # complete drop-in: extract next to the tiki100 binary and the
+        # default `disks/boot/...` paths in the README work, plus the
+        # F12 menu Floppy catalog can find every image.
+        run: |
+          set -e
+          STAGE="tiki100-disks-${{ steps.ver.outputs.version }}"
+          mkdir -p "$STAGE"
+          cp -r disks "$STAGE/"
+          cp README.md "$STAGE/" 2>/dev/null || true
+          ls -la "$STAGE/disks"
+
+      - name: Create zip
+        run: |
+          set -e
+          NAME="tiki100-disks-${{ steps.ver.outputs.version }}"
+          zip -r "${NAME}.zip" "$NAME"
+          ls -la "${NAME}.zip"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tiki100-disks
+          path: tiki100-disks-*.zip
+          if-no-files-found: error
+
+  publish-release:
+    name: Publish GitHub Release
+    needs: [build-windows, build-linux-amd64, build-linux-arm, build-macos, bundle-disks]
+    runs-on: ubuntu-latest
+    # Only publish on actual tag pushes, not workflow_dispatch runs with empty tag input
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+
+      - name: Re-zip Windows artifact directories
+        # download-artifact extracts each artifact into dist/<name>/.
+        # For Windows builds (uploaded as directories to avoid the
+        # zip-inside-zip problem), rebuild a .zip per platform so the
+        # release attachment extracts cleanly into a <name>/ folder.
+        # .deb artifacts are already single files and skipped by the
+        # directory check.
+        run: |
+          set -e
+          cd dist
+          for d in */; do
+            name="${d%/}"
+            # Only re-zip directories that contain a .exe (Windows staging)
+            if ls "$d"*.exe >/dev/null 2>&1; then
+              zip -r "${name}.zip" "$name"
+            fi
+          done
+
+      - name: List artifacts
+        run: find dist -maxdepth 2 -type f \( -name '*.zip' -o -name '*.deb' \) -print
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/*.zip
+            dist/tiki100-disks/*.zip
+            dist/**/*.deb
+            dist/**/*.tar.gz
+          generate_release_notes: true
+          draft: false
+          prerelease: false
