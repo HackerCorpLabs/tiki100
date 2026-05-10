@@ -15,7 +15,7 @@ Based on the original emulator by Asbjorn Djupdal (2000–2001) and Z80 CPU code
 
 ## Try it in your browser
 
-No download required — run the emulator straight from the web at **<https://tiki.hackercorp.no/>**. WebAssembly build with full keyboard, video, and sound; ideal for a 30-second test drive before deciding whether to install locally.
+Run the emulator straight from the web at **<https://tiki.hackercorp.no/>** — no download or install required. WebAssembly build with full keyboard, video, and sound. For anyone who wants to try the emulator without installing anything.
 
 ## New to the emulator?
 
