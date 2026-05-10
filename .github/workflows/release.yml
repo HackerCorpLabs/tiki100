@@ -42,7 +42,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup MSYS2 (${{ matrix.msystem }})
         uses: msys2/setup-msys2@v2
@@ -88,7 +88,7 @@ jobs:
         # download, so uploading a .zip produced a zip-inside-a-zip.
         # Pointing at the dir puts the exe + DLL + assets at the root of
         # the downloaded zip.
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: tiki100-windows-${{ matrix.arch }}
           path: dist/tiki100-windows-${{ matrix.arch }}/
@@ -99,7 +99,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Compute package version
         id: ver
@@ -156,7 +156,7 @@ jobs:
         run: ls -la dist/
 
       - name: Upload .deb
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: tiki100-linux-amd64-deb
           path: dist/*.deb
@@ -178,7 +178,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Compute package version
         id: ver
@@ -247,7 +247,7 @@ jobs:
         run: ls -la dist/
 
       - name: Upload .deb
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: tiki100-linux-${{ matrix.deb_arch }}-deb
           path: dist/*.deb
@@ -265,7 +265,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install SDL2
         run: brew install sdl2
@@ -292,7 +292,7 @@ jobs:
           tar czf "tiki100-macos-${{ matrix.arch }}.tar.gz" "tiki100-macos-${{ matrix.arch }}"
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: tiki100-macos-${{ matrix.arch }}
           path: dist/tiki100-macos-${{ matrix.arch }}.tar.gz
@@ -303,7 +303,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Compute package version
         id: ver
@@ -336,7 +336,7 @@ jobs:
           ls -la "${NAME}.zip"
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: tiki100-disks
           path: tiki100-disks-*.zip
@@ -352,7 +352,7 @@ jobs:
       contents: write
     steps:
       - name: Download all artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           path: dist
 
