@@ -13,6 +13,10 @@ Based on the original emulator by Asbjorn Djupdal (2000–2001) and Z80 CPU code
   <img src="images/tiki-data-logo.png" alt="Tiki Data logo" height="60">
 </p>
 
+## Try it in your browser
+
+No download required — run the emulator straight from the web at **<https://tiki.hackercorp.no/>**. WebAssembly build with full keyboard, video, and sound; ideal for a 30-second test drive before deciding whether to install locally.
+
 ## New to the emulator?
 
 Start with one of these introductions — no prior emulator or retro-computing experience required.

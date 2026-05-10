@@ -1,5 +1,7 @@
 # Installing TIKI-100 Emulator (pre-built binaries)
 
+> **Just want a quick test?** Run the emulator in your browser at **<https://tiki.hackercorp.no/>** — no install required.
+
 Pre-built binaries for **macOS** (Apple Silicon), **Windows** (x64 / x86), **Linux amd64**, **Raspberry Pi OS 64-bit** (arm64), and **Raspberry Pi OS 32-bit** (armhf) are published on the [Releases page](../../../releases).
 
 If you'd rather compile from source, see [BUILDING.md](BUILDING.md).

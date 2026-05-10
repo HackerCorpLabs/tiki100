@@ -4,6 +4,9 @@ A friendly, step-by-step introduction to the TIKI-100 emulator. No prior
 experience with emulators or 1980s computers is required — every term
 and step is explained when it first appears.
 
+> **Want to try before you install?** Run the emulator straight in your
+> browser at **<https://tiki.hackercorp.no/>** — no download required.
+
 If you are in a hurry, jump to **[4. Quick start guide](#4-quick-start-guide)**.
 Otherwise, read straight through.
 
