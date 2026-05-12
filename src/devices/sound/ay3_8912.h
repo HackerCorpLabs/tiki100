@@ -88,6 +88,15 @@ byte ayDataRead(void);
  */
 int ayTick(void);
 
+/* Flush AY ticks up to a given Z80-cycle offset within the current
+ * LoopZ80 block. Call BEFORE applying any AY register write so the
+ * write takes effect at the correct sample boundary. */
+void ayFlush(int cyclesIntoBlock);
+
+/* Clear the per-block cycle-debt tracker. Call once per LoopZ80
+ * after flushing the full IPeriod. */
+void ayResetDebt(void);
+
 /* Get the most recent audio sample (-1.0 to 1.0) */
 float ayGetSample(void);
 

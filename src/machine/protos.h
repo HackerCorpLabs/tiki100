@@ -77,6 +77,10 @@ void soundReg (byte value);
 void soundData (byte value);
 /* read data register (port 0x17) */
 byte getSoundData (void);
+/* flush AY ticks up to a Z80-cycle offset within current LoopZ80 block */
+void soundFlush (int cyclesIntoBlock);
+/* clear per-block cycle-debt counter (call after end-of-block flush) */
+void soundResetDebt (void);
 
 /*****************************************************************************/
 /* hdd.c - WD1010 hard disk controller                                       */

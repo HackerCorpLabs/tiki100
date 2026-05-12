@@ -35,14 +35,13 @@ void PatchZ80 (register Z80 *R) {
 /* kalles regelmessig av z80-emulator */
 word LoopZ80 (register Z80 *R) {
   static int guiCount = 20;
-  int i;
   if (done) return INT_QUIT;
   updateCTC (cpu.IPeriod);
-  /* Tick sound chip at CPU/2 rate.
-   * IPeriod = 4000 Z80 cycles = 2000 AY ticks */
-  for (i = 0; i < cpu.IPeriod / 2; i++) {
-    ayTick();
-  }
+  /* Cycle-accurate sound: register writes during this block have already
+   * flushed AY ticks up to their exact CPU cycle (see mem.c OutZ80).
+   * Now finish the block by flushing the remaining cycles. */
+  soundFlush (cpu.IPeriod);
+  soundResetDebt ();
   if (--guiCount == 0) {
     loopEmul (20);
     guiCount = 20;

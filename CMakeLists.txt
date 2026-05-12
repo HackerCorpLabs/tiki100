@@ -12,7 +12,7 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_BINARY_DIR)
     )
 endif()
 
-project(tiki100 VERSION 1.0.2 DESCRIPTION "TIKI-100 Emulator" LANGUAGES C)
+project(tiki100 VERSION 1.0.3 DESCRIPTION "TIKI-100 Emulator" LANGUAGES C)
 
 # Options
 option(BUILD_WASM "Build for WebAssembly using Emscripten" OFF)

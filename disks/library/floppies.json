@@ -70,6 +70,7 @@
     {"file": "FD0068.dsk", "label": "Mons og Marte", "size": 200},
     {"file": "TETRIS.dsk", "label": "Tetris (ovesennet)", "size": 400},
     {"file": "JETSET.dsk", "label": "Jet Set Willy (ovesennet)", "size": 400},
-    {"file": "ARKANOID.dsk", "label": "Arkanoid (ovesennet)", "size": 400}
+    {"file": "ARKANOID.dsk", "label": "Arkanoid (ovesennet)", "size": 400}, 
+    {"file": "PACMAN.dsk", "label": "PacMan (ovesennet)", "size": 400}
   ]
 }

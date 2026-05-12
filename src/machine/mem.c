@@ -13,6 +13,7 @@
 
 /* variabler */
 
+extern Z80 cpu;         /* CPU state — needed for cycle-accurate sound flush */
 byte ram[64 * 1024];    /* hoved minne */
 extern byte gfxRam[];   /* grafikk minne */
 byte rom[16 * 1024];    /* monitor eprom, vanligvis bare 8k men st�tter 16k */
@@ -201,9 +202,11 @@ void OutZ80 (register word port, register byte value) {
       newColor (value);
       break;
     case 0x16:  /* lyd-scroll peker */
+      soundFlush (cpu.IPeriod - cpu.ICount);
       soundReg (value);
       break;
     case 0x17:  /* lyd-scroll data */
+      soundFlush (cpu.IPeriod - cpu.ICount);
       soundData (value);
       break;
     case 0x18:  /* ctc kanal 0 */

@@ -71,10 +71,39 @@ static int     hddLightTimer[2] = {0, 0};  /* loopEmul ticks remaining */
  * Speed indices: 0=0.5x, 1=1x(normal), 2=2x, 3=4x, 4=full(unthrottled) */
 static int speedIndex = 1;
 static const float speedMultipliers[5] = {0.5f, 1.0f, 2.0f, 4.0f, 0.0f};
-static Uint32 lastTick = 0;
+
+/* High-resolution accumulator pacer.
+ *
+ * We compute a target "deadline" in SDL performance-counter units that
+ * advances by exactly (emulated_ms / multiplier) every loopEmul call.
+ * Each iteration sleeps until that deadline. Drift cannot accumulate
+ * because the deadline never depends on when we actually wake — only
+ * on how much emulated time has elapsed.
+ *
+ * If we fall more than RESYNC_THRESHOLD behind (debugger pause, menu
+ * open, OS hiccup, suspend/resume), we snap the deadline to "now" so
+ * we don't try to run at lightspeed to catch up. */
+static Uint64 perfFreq = 0;          /* SDL_GetPerformanceFrequency() */
+static Uint64 nextDeadline = 0;      /* target wake time in perf-counter units */
+#define RESYNC_THRESHOLD_MS 100
 
 /* Running flag */
 static boolean running = TRUE;
+
+/* Hybrid sleep-then-spin until the given perf-counter deadline.
+ * Coarse sleep gets us within ~1ms, then a tight spin nails the last bit. */
+static void preciseSleepUntil(Uint64 deadline) {
+  Uint64 now = SDL_GetPerformanceCounter();
+  if (deadline <= now) return;
+  Uint64 remain = deadline - now;
+  /* Convert to ms, subtract 1ms safety margin for the spin */
+  Sint64 sleepMs = (Sint64)((remain * 1000) / perfFreq) - 1;
+  if (sleepMs > 0) SDL_Delay((Uint32)sleepMs);
+  /* Tight spin for sub-millisecond precision */
+  while (SDL_GetPerformanceCounter() < deadline) {
+    /* spin */
+  }
+}
 
 /* Audio */
 static SDL_AudioDeviceID audioDevice = 0;
@@ -300,20 +329,33 @@ void loopEmul(int ms) {
       SDL_RenderPresent(renderer);
       SDL_Delay(16);
     }
-    lastTick = SDL_GetTicks();
+    /* Menu paused emulation for an unknown duration — resync the
+     * deadline so we don't try to catch up the lost wall-clock time. */
+    nextDeadline = SDL_GetPerformanceCounter();
     return;
   }
 
   if (speedIndex < 4) {
-    /* Paced mode: scale delay by speed multiplier */
+    /* Paced mode: high-resolution accumulator.
+     * Advance the deadline by exactly (ms / multiplier) of wall-clock,
+     * then sleep until that deadline. Drift cannot accumulate because
+     * the deadline is independent of actual wake times. */
     float mult = speedMultipliers[speedIndex];
-    Uint32 targetMs = (mult > 0.0f) ? (Uint32)(ms / mult) : 0;
-    Uint32 now = SDL_GetTicks();
-    Uint32 elapsed = now - lastTick;
-    if (elapsed < targetMs) {
-      SDL_Delay(targetMs - elapsed);
+    if (mult > 0.0f) {
+      double targetSec = (double)ms / (1000.0 * (double)mult);
+      Uint64 advance = (Uint64)(targetSec * (double)perfFreq + 0.5);
+      nextDeadline += advance;
+
+      Uint64 now = SDL_GetPerformanceCounter();
+      /* If we've fallen more than RESYNC_THRESHOLD_MS behind (paused,
+       * suspended, debugger), snap forward to avoid lightspeed catch-up. */
+      Uint64 threshold = (perfFreq * RESYNC_THRESHOLD_MS) / 1000;
+      if (now > nextDeadline + threshold) {
+        nextDeadline = now;
+      } else {
+        preciseSleepUntil(nextDeadline);
+      }
     }
-    lastTick = SDL_GetTicks();
     updateScreen();
   } else {
     /* Full speed (index 4): only update screen every 10th call (~5fps)
@@ -1105,8 +1147,9 @@ int main(int argc, char *argv[]) {
   if (serAArg) parseSerialArg(1, serAArg);   /* ch1 = DART channel A */
   if (serBArg) parseSerialArg(0, serBArg);   /* ch0 = DART channel B */
 
-  /* Initialize timing */
-  lastTick = SDL_GetTicks();
+  /* Initialize high-resolution timing */
+  perfFreq = SDL_GetPerformanceFrequency();
+  nextDeadline = SDL_GetPerformanceCounter();
 
   /* Load disk images if specified */
   if (fd0Image) { readDiskImage(0, fd0Image); menuSetFloppyMounted(0, fd0Image); }

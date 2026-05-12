@@ -43,3 +43,16 @@ void soundData(byte value) {
 byte getSoundData(void) {
   return ayDataRead();
 }
+
+/* Cycle-accurate flush: generate AY ticks up to the given Z80-cycle
+ * offset within the current LoopZ80 block. Called from mem.c before
+ * register writes and from LoopZ80 at end-of-block. */
+void soundFlush(int cyclesIntoBlock) {
+  ayFlush(cyclesIntoBlock);
+}
+
+/* Reset per-block cycle-debt counter. Called from LoopZ80 after
+ * flushing the full IPeriod. */
+void soundResetDebt(void) {
+  ayResetDebt();
+}

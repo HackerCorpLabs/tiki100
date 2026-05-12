@@ -116,6 +116,13 @@ static float dcadjBuf[DCADJ_BUFLEN];
 static ay_port_write_fn portWriteFn;
 static ay_port_read_fn portReadFn;
 
+/* Cycle-accurate flush tracking.
+ * ayCycleDebt = Z80 cycles within the current LoopZ80 block that have
+ *               already been converted to AY ticks.
+ * halfTickAccum = leftover Z80 cycle (0 or 1) since AY ticks at CPU/2. */
+static int ayCycleDebt;
+static int halfTickAccum;
+
 /* Ring buffer for CPU-to-audio-thread sample delivery.
  * Power-of-2 size for fast masking. ~93ms at 44100 Hz. */
 #define RING_SIZE 4096
@@ -226,6 +233,9 @@ void ayReset(void) {
 
   ringHead = 0;
   ringTail = 0;
+
+  ayCycleDebt = 0;
+  halfTickAccum = 0;
 
   updateValues();
   restartEnvShape();
@@ -405,6 +415,23 @@ void ayFillAudioBuffer(float *buffer, int frames) {
     buffer[i * 2]     = sample;  /* Left */
     buffer[i * 2 + 1] = sample;  /* Right */
   }
+}
+
+void ayFlush(int cyclesIntoBlock) {
+  int delta = cyclesIntoBlock - ayCycleDebt;
+  int ticks;
+  if (delta <= 0) return;
+  ayCycleDebt = cyclesIntoBlock;
+  halfTickAccum += delta;
+  ticks = halfTickAccum >> 1;
+  halfTickAccum &= 1;
+  while (ticks-- > 0) ayTick();
+}
+
+void ayResetDebt(void) {
+  ayCycleDebt = 0;
+  /* halfTickAccum carries across blocks — represents a real half-AY-tick
+   * of work owed, so we keep it. */
 }
 
 void ayRenderAudio(float *buffer, int frames) {
