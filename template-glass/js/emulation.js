@@ -12,6 +12,24 @@ var Emulation = (function() {
     var fpsLastTime = 0;
     var fpsFrames = 0;
 
+    /* High-resolution deadline pacer — same model as the SDL native build.
+     *
+     * Z80 = 4 MHz, IPeriod = 4000 → exactly 1 Step() = 1 ms of emulated time.
+     *
+     * nextDeadline holds the wall-clock time the emulator *should* reach
+     * (in ms since performance.now()'s epoch). Each Step() advances it by
+     * exactly 1 ms. Because the deadline never depends on when RAF actually
+     * fires, drift cannot accumulate — the speed is identical on a 60 Hz,
+     * 120 Hz, 144 Hz, or 240 Hz monitor.
+     *
+     * If we fall more than RESYNC_THRESHOLD_MS behind (tab backgrounded,
+     * GC pause, breakpoint), we snap nextDeadline = now so the emulator
+     * doesn't try to run at lightspeed catching up. Mirrors the 100 ms
+     * threshold in tiki100sdl.c. */
+    var RESYNC_THRESHOLD_MS = 100;
+    var MAX_STEPS_PER_FRAME = 200;     /* hard cap so RAF never blocks the browser too long */
+    var nextDeadline = 0;
+
     function init() {
         canvas = document.getElementById('tiki-screen');
         if (canvas) {
@@ -70,6 +88,7 @@ var Emulation = (function() {
                 running = true;
                 booted = true;
                 fpsLastTime = performance.now();
+                nextDeadline = fpsLastTime;
 
                 /* Start sound (requires user gesture - boot button click counts) */
                 Sound.init();
@@ -115,14 +134,29 @@ var Emulation = (function() {
     function tick() {
         if (!running) return;
 
-        /* At 60fps we need ~66667 cycles per frame for 4MHz.
-         * IPeriod=4000, so ~17 Step calls per frame. Use 20. */
-        /* Normal: 20 steps/frame ≈ 4MHz at 60fps
-         * Full speed: 200 steps/frame ≈ 40MHz */
-        var stepsPerFrame = fullSpeedMode ? 200 : 20;
-        var i;
-        for (i = 0; i < stepsPerFrame; i++) {
-            Module._Step(0);
+        var now = performance.now();
+        var steps = 0;
+
+        if (fullSpeedMode) {
+            /* Unthrottled — run a fixed batch and keep the deadline pinned. */
+            while (steps < MAX_STEPS_PER_FRAME) {
+                Module._Step(0);
+                steps++;
+            }
+            nextDeadline = now;
+        } else {
+            /* Deadline-paced. Drift cannot accumulate because nextDeadline
+             * advances by exactly 1 ms per Step() — independent of when
+             * RAF actually fires. */
+            if (now > nextDeadline + RESYNC_THRESHOLD_MS) {
+                /* Fell too far behind — snap forward instead of catching up. */
+                nextDeadline = now;
+            }
+            while (nextDeadline < now && steps < MAX_STEPS_PER_FRAME) {
+                Module._Step(0);
+                nextDeadline += 1;   /* 1 Step = 1 ms emulated */
+                steps++;
+            }
         }
 
         updateScreen();
