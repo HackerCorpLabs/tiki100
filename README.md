@@ -1,7 +1,7 @@
 # TIKI-100 Emulator
 
-[![Release builds](https://github.com/HackerCorpLabs/tiki100/actions/workflows/release.yml/badge.svg)](https://github.com/HackerCorpLabs/tiki100/actions/workflows/release.yml)
-[![Latest Release](https://img.shields.io/github/v/release/HackerCorpLabs/tiki100?include_prereleases&sort=semver)](https://github.com/HackerCorpLabs/tiki100/releases/latest)
+[![Release builds](https://github.com/RetroCoreLabs/tiki100/actions/workflows/release.yml/badge.svg)](https://github.com/RetroCoreLabs/tiki100/actions/workflows/release.yml)
+[![Latest Release](https://img.shields.io/github/v/release/RetroCoreLabs/tiki100?include_prereleases&sort=semver)](https://github.com/RetroCoreLabs/tiki100/releases/latest)
 ![Platforms](https://img.shields.io/badge/platforms-macOS%20%7C%20Linux%20%7C%20Windows%20%7C%20Raspberry%20Pi-blue)
 
 Cross-platform hardware emulator for the **TIKI-100**, a Norwegian CP/M-compatible computer from 1984. Period-accurate Z80A at 4 MHz, AY-3-8912 sound, FD1771 floppy and WD1010 hard disk controllers, plus full Z80 DART serial with Hayes-modem-over-TCP support.
@@ -30,7 +30,7 @@ Start with one of these introductions — no prior emulator or retro-computing e
 **Pre-built binaries** for macOS, Linux, Windows, and Raspberry Pi are on the [Releases page](../../releases). One-line install on Debian/Ubuntu/Raspberry Pi OS:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/HackerCorpLabs/tiki100/main/scripts/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/RetroCoreLabs/tiki100/main/scripts/install.sh | sh
 tiki100 -fd0 /usr/share/tiki100/disks/boot/tiko_kjerne_v4.01.dsk
 ```
 
@@ -38,7 +38,7 @@ tiki100 -fd0 /usr/share/tiki100/disks/boot/tiko_kjerne_v4.01.dsk
 
 ```bash
 sudo apt install build-essential cmake pkg-config libsdl2-dev zenity
-git clone https://github.com/HackerCorpLabs/tiki100.git
+git clone https://github.com/RetroCoreLabs/tiki100.git
 cd tiki100 && make release
 ./build_release/bin/tiki100 -fd0 disks/boot/tiko_kjerne_v4.01.dsk
 ```
